@@ -1,0 +1,8 @@
+<Solution>
+  <Project Path="MediatorLib/MediatorLib.csproj" />
+  <Project Path="MediatorLibGenerator/MediatorLibGenerator.csproj" Id="5a232bb1-300a-4e53-8077-725c7cf02b50" />
+  <Project Path="RoboMapper/RoboMapper.csproj" Id="f03c346c-c47c-4718-ad1a-f6eb457f95ed" />
+  <Project Path="ServiceLib/ServiceLib.csproj" />
+  <Project Path="TestRoboMapper/TestRoboMapper.csproj" Id="d8f73ade-5c27-4466-9d85-3cd5fe7f876a" />
+  <Project Path="WebApi/WebApi.csproj" />
+</Solution>
