@@ -1,4 +1,4 @@
-﻿using RoboMapper;
+﻿using MediatorLib.Mapping;
 using TestRoboMapper.Model;
 
 namespace TestRoboMapper

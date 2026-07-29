@@ -9,6 +9,7 @@
   <ItemGroup>
     <ProjectReference Include="..\MediatorLib\MediatorLib.csproj" />
     <ProjectReference Include="..\MediatorLibGenerator\MediatorLibGenerator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    
   </ItemGroup>
 
 </Project>

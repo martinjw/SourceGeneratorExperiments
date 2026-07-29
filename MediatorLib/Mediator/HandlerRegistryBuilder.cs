@@ -1,14 +1,9 @@
 ﻿using System.Reflection;
 
-namespace MediatorLib
+namespace MediatorLib.Mediator
 {
-    /// <summary>
-    /// A reflection-based registry that scans provided assemblies to discover and register request and notification handlers for a mediator pattern implementation.
-    /// </summary>
-    public class HandlerRegistry : IHandlerRegistry
+    public static class HandlerRegistryBuilder
     {
-        public Dictionary<Type, Type> RequestHandlers { get; } = new();
-        public Dictionary<Type, List<Type>> NotificationHandlers { get; } = new();
 
         /// <summary>
         /// Initializes a new instance of the HandlerRegistry class by scanning the provided assemblies for handler
@@ -20,8 +15,9 @@ namespace MediatorLib
         /// for IRequestHandler  and will be aggregated for INotificationHandler </remarks>
         /// <param name="assemblies">The collection of assemblies to scan for types implementing IRequestHandler  and INotificationHandler 
         /// interfaces. Cannot be null.</param>
-        public HandlerRegistry(IEnumerable<Assembly> assemblies)
+        public static IHandlerRegistry Build(IEnumerable<Assembly> assemblies)
         {
+            var handler = new HandlerRegistry();
             foreach (var type in assemblies.SelectMany(a => a.GetTypes()))
             {
                 foreach (var iface in type.GetInterfaces())
@@ -29,8 +25,15 @@ namespace MediatorLib
                     if (iface.IsGenericType &&
                         iface.GetGenericTypeDefinition() == typeof(IRequestHandler<,>))
                     {
-                        var requestType = iface.GetGenericArguments()[0];
-                        RequestHandlers[requestType] = type;
+                        var requestType = NormalizeRequestType(iface.GetGenericArguments()[0]);
+                        handler.RequestHandlers[requestType] = NormalizeHandlerType(type);
+                    }
+
+                    if (iface.IsGenericType &&
+                        iface.GetGenericTypeDefinition() == typeof(IRequestHandler<>))
+                    {
+                        var requestType = NormalizeRequestType(iface.GetGenericArguments()[0]);
+                        handler.RequestHandlers[requestType] = NormalizeHandlerType(type);
                     }
 
                     if (iface.IsGenericType &&
@@ -38,16 +41,35 @@ namespace MediatorLib
                     {
                         var notifType = iface.GetGenericArguments()[0];
 
-                        if (!NotificationHandlers.TryGetValue(notifType, out var list))
+                        if (!handler.NotificationHandlers.TryGetValue(notifType, out var list))
                         {
                             list = new List<Type>();
-                            NotificationHandlers[notifType] = list;
+                            handler.NotificationHandlers[notifType] = list;
                         }
 
                         list.Add(type);
                     }
                 }
             }
+
+            return handler;
+        }
+
+
+        private static Type NormalizeRequestType(Type requestType)
+        {
+            if (requestType.IsGenericType && requestType.ContainsGenericParameters)
+                return requestType.GetGenericTypeDefinition();
+
+            return requestType;
+        }
+
+        private static Type NormalizeHandlerType(Type handlerType)
+        {
+            if (handlerType.IsGenericType && handlerType.ContainsGenericParameters)
+                return handlerType.GetGenericTypeDefinition();
+
+            return handlerType;
         }
     }
 }

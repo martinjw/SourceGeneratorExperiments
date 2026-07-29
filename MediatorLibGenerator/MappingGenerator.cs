@@ -7,13 +7,22 @@ using System.Collections.Immutable;
 using System.Linq;
 using System.Text;
 
-namespace RoboMapper.Generator
+namespace MediatorLibGenerator
 {
     [Generator]
     public sealed class MappingGenerator : IIncrementalGenerator
     {
         public void Initialize(IncrementalGeneratorInitializationContext context)
         {
+            var generatedNamespace = context.AnalyzerConfigOptionsProvider
+                .Select(static (provider, _) =>
+                {
+                    provider.GlobalOptions.TryGetValue("build_property.RootNamespace", out var rootNamespace);
+                    return rootNamespace;
+                })
+                .Combine(context.CompilationProvider.Select(static (compilation, _) => compilation.AssemblyName))
+                .Select(static (names, _) => GeneratorHelpers.ResolveGeneratedNamespace(names.Left, names.Right));
+
             // Discover class declarations that might inherit from MappingProfile.
             var profileClasses = context.SyntaxProvider
                 .CreateSyntaxProvider(
@@ -25,13 +34,19 @@ namespace RoboMapper.Generator
 
             // Combine discovered profiles with the current compilation.
             var compilationAndProfiles = context.CompilationProvider.Combine(profileClasses);
+            var generationInputs = compilationAndProfiles.Combine(generatedNamespace);
 
             // Generate source output from the compilation + discovered mapping profiles.
-            context.RegisterSourceOutput(compilationAndProfiles, (productionContext, pair) =>
+            context.RegisterSourceOutput(generationInputs, (productionContext, pair) =>
             {
-                var compilation = pair.Left;
-                var profiles = pair.Right;
-                Execute(productionContext, compilation, profiles);
+                var compilation = pair.Left.Left;
+                var profiles = pair.Left.Right;
+                var generatedNamespaceValue = pair.Right;
+
+                if (profiles.IsDefaultOrEmpty)
+                    return;
+
+                Execute(productionContext, compilation, profiles, generatedNamespaceValue);
             });
         }
 
@@ -58,7 +73,7 @@ namespace RoboMapper.Generator
             return null;
         }
 
-        private static void Execute(SourceProductionContext context, Compilation compilation, ImmutableArray<INamedTypeSymbol> profiles)
+        private static void Execute(SourceProductionContext context, Compilation compilation, ImmutableArray<INamedTypeSymbol> profiles, string generatedNamespace)
         {
             // Nothing to generate when no profiles are discovered.
             if (profiles.IsDefaultOrEmpty)
@@ -73,8 +88,8 @@ namespace RoboMapper.Generator
             }
 
             // Emit generated map methods and startup registration code.
-            GenerateMappings(context, mappings);
-            GenerateMapperConfigurationPartial(context, mappings);
+            GenerateMappings(context, mappings, generatedNamespace);
+            GenerateMapperConfigurationPartial(context, mappings, generatedNamespace);
         }
 
         private static void CollectMappings(
@@ -125,8 +140,9 @@ namespace RoboMapper.Generator
 
                         var reverse = false;
                         var customMappings = new List<PropertyMapping>();
+                        var afterMapActions = new List<string>();
 
-                        // Walk chained fluent calls (ReverseMap / ForMember).
+                        // Walk chained fluent calls (ReverseMap / ForMember / AfterMap).
                         SyntaxNode currentNode = invocation;
                         while (true)
                         {
@@ -172,16 +188,34 @@ namespace RoboMapper.Generator
                                         }
 
                                         string? srcMember = null;
-                                        var lambdaExpr = srcArg.Expression;
-                                        if (lambdaExpr is SimpleLambdaExpressionSyntax simpleLambda)
-                                            srcMember = ExtractMemberNameFromNode(simpleLambda.Body);
-                                        else if (lambdaExpr is ParenthesizedLambdaExpressionSyntax parenLambda)
-                                            srcMember = ExtractMemberNameFromNode(parenLambda.Body);
+                                        string? mapFromExpression = null;
+
+                                        if (TryExtractMapFromLambda(srcArg.Expression, out var mapFromLambda))
+                                        {
+                                            srcMember = ExtractMemberNameFromNode((CSharpSyntaxNode)mapFromLambda.Body);
+                                            mapFromExpression = ExtractMapFromExpression(mapFromLambda, model);
+                                        }
 
                                         if (!string.IsNullOrEmpty(destMember))
                                         {
                                             // Keep source member nullable to allow fallback behavior later.
-                                            customMappings.Add(new PropertyMapping(destMember!, srcMember));
+                                            customMappings.Add(new PropertyMapping(destMember!, srcMember, mapFromExpression));
+                                        }
+                                    }
+                                }
+                                else if (memberName == "AfterMap")
+                                {
+                                    // Capture AfterMap actions: AfterMap((src, dest) => { ... })
+                                    if (chained.ArgumentList.Arguments.Count >= 1)
+                                    {
+                                        var actionArg = chained.ArgumentList.Arguments[0];
+                                        if (actionArg.Expression is LambdaExpressionSyntax afterMapLambda)
+                                        {
+                                            var afterMapCode = ExtractAfterMapExpression(afterMapLambda, model);
+                                            if (!string.IsNullOrWhiteSpace(afterMapCode))
+                                            {
+                                                afterMapActions.Add(afterMapCode);
+                                            }
                                         }
                                     }
                                 }
@@ -196,25 +230,27 @@ namespace RoboMapper.Generator
                         }
 
                         // Store the discovered mapping definition for source generation.
-                        mappings.Add(new MappingDefinition(src, dest, reverse, customMappings));
+                        mappings.Add(new MappingDefinition(src, dest, reverse, customMappings, afterMapActions));
                     }
                 }
             }
         }
 
-        private static void GenerateMappings(SourceProductionContext context, List<MappingDefinition> mappings)
+        private static void GenerateMappings(SourceProductionContext context, List<MappingDefinition> mappings, string generatedNamespace)
         {
             var sb = new StringBuilder();
             sb.AppendLine("// <auto-generated />");
             sb.AppendLine("using System;");
-            sb.AppendLine("namespace RoboMapper");
+            sb.AppendLine("using System.Linq;");
+            sb.AppendLine($"namespace {generatedNamespace}");
             sb.AppendLine("{");
             sb.AppendLine("    internal static class GeneratedMappings");
             sb.AppendLine("    {");
 
             // Registry of available type-to-type mappings for nested property mapping.
             var registry = new HashSet<string>(StringComparer.Ordinal);
-            foreach (var m in mappings.Distinct())
+            var comparer = new MappingDefinitionTypeComparer();
+            foreach (var m in mappings.Distinct(comparer))
             {
                 var key = m.Source.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) + "->" + m.Destination.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
                 registry.Add(key);
@@ -226,17 +262,18 @@ namespace RoboMapper.Generator
             }
 
             // Emit one method per discovered mapping (and reverse mapping when requested).
-            foreach (var m in mappings.Distinct())
+            foreach (var m in mappings.Distinct(comparer))
             {
-                EmitMappingMethod(context, sb, m.Source, m.Destination, m.CustomMappings, registry);
+                EmitMappingMethod(context, sb, m.Source, m.Destination, m.CustomMappings, m.AfterMapActions, registry);
 
                 if (m.Reverse)
                 {
                     var revCustom = m.CustomMappings.Select(cm => new PropertyMapping(
                         DestinationName: cm.SourceName ?? cm.DestinationName,
-                        SourceName: cm.DestinationName)).ToList();
+                        SourceName: cm.DestinationName,
+                        MapFromExpression: null)).ToList();
 
-                    EmitMappingMethod(context, sb, m.Destination, m.Source, revCustom, registry);
+                    EmitMappingMethod(context, sb, m.Destination, m.Source, revCustom, new List<string>(), registry);
                 }
             }
 
@@ -252,6 +289,7 @@ namespace RoboMapper.Generator
             INamedTypeSymbol src,
             INamedTypeSymbol dest,
             IReadOnlyList<PropertyMapping> custom,
+            IReadOnlyList<string> afterMapActions,
             HashSet<string> registry)
         {
             var srcName = src.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
@@ -265,11 +303,11 @@ namespace RoboMapper.Generator
             sb.AppendLine($"            if (src is null) throw new ArgumentNullException(nameof(src));");
             sb.AppendLine($"            var dest = new {destName}();");
 
-            var destProps = dest.GetMembers().OfType<IPropertySymbol>()
+            var destProps = GetAllProperties(dest)
                 .Where(p => p.SetMethod is not null)
                 .ToDictionary(p => p.Name, p => p, StringComparer.Ordinal);
 
-            var srcProps = src.GetMembers().OfType<IPropertySymbol>()
+            var srcProps = GetAllProperties(src)
                 .Where(p => p.GetMethod is not null)
                 .ToDictionary(p => p.Name, p => p, StringComparer.Ordinal);
 
@@ -280,6 +318,13 @@ namespace RoboMapper.Generator
                 if (!destProps.TryGetValue(cm.DestinationName, out var destProp))
                 {
                     ReportDiagnosticMissingDest(context, dest, cm.DestinationName);
+                    continue;
+                }
+
+                if (!string.IsNullOrWhiteSpace(cm.MapFromExpression))
+                {
+                    sb.AppendLine($"            dest.{destProp.Name} = {cm.MapFromExpression};");
+                    emitted.Add(destProp.Name);
                     continue;
                 }
 
@@ -301,6 +346,27 @@ namespace RoboMapper.Generator
                 }
                 else
                 {
+                    // Check for collection mapping: IEnumerable<T>/IList<T> where T has a known mapping
+                    if (IsCollectionType(srcProp.Type, out var srcElementType) && 
+                        IsCollectionType(destProp.Type, out var destElementType) &&
+                        srcElementType is not null && destElementType is not null)
+                    {
+                        var srcElemTypeName = srcElementType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+                        var destElemTypeName = destElementType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+                        var elemKey = srcElemTypeName + "->" + destElemTypeName;
+
+                        if (registry.Contains(elemKey))
+                        {
+                            if (srcElementType is INamedTypeSymbol srcElemNamed && destElementType is INamedTypeSymbol destElemNamed)
+                            {
+                                var mapMethod = $"Map_{Sanitize(srcElemNamed)}_{Sanitize(destElemNamed)}";
+                                sb.AppendLine($"            dest.{destProp.Name} = src.{srcProp.Name}?.Select(item => GeneratedMappings.{mapMethod}(item)).ToList();");
+                                emitted.Add(destProp.Name);
+                                continue;
+                            }
+                        }
+                    }
+
                     // For differing property types, recurse if a generated mapping exists.
                     var srcTypeName = srcProp.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
                     var destTypeName = destProp.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
@@ -311,14 +377,14 @@ namespace RoboMapper.Generator
                         if (srcProp.Type is INamedTypeSymbol srcNamed && destProp.Type is INamedTypeSymbol destNamed)
                         {
                             var mapMethod = $"Map_{Sanitize(srcNamed)}_{Sanitize(destNamed)}";
-                            if (NeedsNullGuardForNestedMap(srcProp.Type))
-                            {
-                                sb.AppendLine($"            dest.{destProp.Name} = src.{srcProp.Name} is null ? default : GeneratedMappings.{mapMethod}(src.{srcProp.Name});");
-                            }
-                            else
-                            {
-                                sb.AppendLine($"            dest.{destProp.Name} = GeneratedMappings.{mapMethod}(src.{srcProp.Name});");
-                            }
+                                if (NeedsNullGuardForNestedMap(srcProp.Type))
+                                {
+                                    sb.AppendLine($"            dest.{destProp.Name} = src.{srcProp.Name} is null ? default : GeneratedMappings.{mapMethod}(src.{srcProp.Name});");
+                                }
+                                else
+                                {
+                                    sb.AppendLine($"            dest.{destProp.Name} = GeneratedMappings.{mapMethod}(src.{srcProp.Name});");
+                                }
                             emitted.Add(destProp.Name);
                         }
                         else
@@ -350,6 +416,27 @@ namespace RoboMapper.Generator
                     }
                     else
                     {
+                        // Check for collection mapping: IEnumerable<T>/IList<T> where T has a known mapping
+                        if (IsCollectionType(srcProp.Type, out var srcElementType) && 
+                            IsCollectionType(destProp.Type, out var destElementType) &&
+                            srcElementType is not null && destElementType is not null)
+                        {
+                            var srcElemTypeName = srcElementType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+                            var destElemTypeName = destElementType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+                            var elemKey = srcElemTypeName + "->" + destElemTypeName;
+
+                            if (registry.Contains(elemKey))
+                            {
+                                if (srcElementType is INamedTypeSymbol srcElemNamed && destElementType is INamedTypeSymbol destElemNamed)
+                                {
+                                    var mapMethod = $"Map_{Sanitize(srcElemNamed)}_{Sanitize(destElemNamed)}";
+                                    sb.AppendLine($"            dest.{destProp.Name} = src.{srcProp.Name}?.Select(item => GeneratedMappings.{mapMethod}(item)).ToList();");
+                                    emitted.Add(destProp.Name);
+                                }
+                                continue;
+                            }
+                        }
+
                         // If types differ, recurse only when a known mapping exists.
                         var srcTypeName = srcProp.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
                         var destTypeName = destProp.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
@@ -365,6 +452,7 @@ namespace RoboMapper.Generator
                             {
                                 sb.AppendLine($"            dest.{destProp.Name} = GeneratedMappings.{mapMethod}(src.{srcProp.Name});");
                             }
+                            emitted.Add(destProp.Name);
                         }
                         else
                         {
@@ -386,6 +474,27 @@ namespace RoboMapper.Generator
                 if (SymbolEqualityComparer.Default.Equals(destProp.Type, srcProp.Type))
                     continue;
 
+                // Check for collection mapping
+                if (IsCollectionType(srcProp.Type, out var srcElementType) && 
+                    IsCollectionType(destProp.Type, out var destElementType) &&
+                    srcElementType is not null && destElementType is not null)
+                {
+                    var srcElemTypeName = srcElementType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+                    var destElemTypeName = destElementType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+                    var elemKey = srcElemTypeName + "->" + destElemTypeName;
+
+                    if (registry.Contains(elemKey))
+                    {
+                        if (srcElementType is INamedTypeSymbol srcElemNamed && destElementType is INamedTypeSymbol destElemNamed)
+                        {
+                            var mapMethod = $"Map_{Sanitize(srcElemNamed)}_{Sanitize(destElemNamed)}";
+                            sb.AppendLine($"            dest.{destProp.Name} = src.{srcProp.Name}?.Select(item => GeneratedMappings.{mapMethod}(item)).ToList();");
+                            emitted.Add(destProp.Name);
+                            continue;
+                        }
+                    }
+                }
+
                 var srcTypeName = srcProp.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
                 var destTypeName = destProp.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
                 var key = srcTypeName + "->" + destTypeName;
@@ -402,6 +511,12 @@ namespace RoboMapper.Generator
                     }
                     emitted.Add(destProp.Name);
                 }
+            }
+
+            // Apply AfterMap actions
+            foreach (var afterMapAction in afterMapActions)
+            {
+                sb.AppendLine($"            {afterMapAction}");
             }
 
             sb.AppendLine("            return dest;");
@@ -427,6 +542,68 @@ namespace RoboMapper.Generator
             => type.IsReferenceType
                || (type is INamedTypeSymbol named
                    && named.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T);
+
+        private static IEnumerable<IPropertySymbol> GetAllProperties(INamedTypeSymbol type)
+        {
+            var properties = new Dictionary<string, IPropertySymbol>(StringComparer.Ordinal);
+            var currentType = type;
+
+            // Walk up the inheritance chain
+            while (currentType is not null)
+            {
+                foreach (var member in currentType.GetMembers())
+                {
+                    if (member is IPropertySymbol property && !properties.ContainsKey(property.Name))
+                    {
+                        // Add property if not already present (most derived wins)
+                        properties[property.Name] = property;
+                    }
+                }
+
+                currentType = currentType.BaseType;
+            }
+
+            return properties.Values;
+        }
+
+        private static bool IsCollectionType(ITypeSymbol type, out ITypeSymbol? elementType)
+        {
+            elementType = null;
+
+            if (type is not INamedTypeSymbol namedType)
+                return false;
+
+            // Check for IEnumerable<T>, IList<T>, ICollection<T>, List<T>
+            if (namedType.IsGenericType && namedType.TypeArguments.Length == 1)
+            {
+                var typeName = namedType.OriginalDefinition.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+
+                if (typeName == "global::System.Collections.Generic.IEnumerable<T>" ||
+                    typeName == "global::System.Collections.Generic.IList<T>" ||
+                    typeName == "global::System.Collections.Generic.ICollection<T>" ||
+                    typeName == "global::System.Collections.Generic.List<T>")
+                {
+                    elementType = namedType.TypeArguments[0];
+                    return true;
+                }
+            }
+
+            // Also check if type implements IEnumerable<T>
+            foreach (var iface in namedType.AllInterfaces)
+            {
+                if (iface.IsGenericType && iface.TypeArguments.Length == 1)
+                {
+                    var ifaceName = iface.OriginalDefinition.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+                    if (ifaceName == "global::System.Collections.Generic.IEnumerable<T>")
+                    {
+                        elementType = iface.TypeArguments[0];
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        }
 
         private static string? ExtractMemberNameFromNode(CSharpSyntaxNode node)
         {
@@ -464,13 +641,217 @@ namespace RoboMapper.Generator
             return null;
         }
 
+        private static bool TryExtractMapFromLambda(ExpressionSyntax expression, out LambdaExpressionSyntax mapFromLambda)
+        {
+            mapFromLambda = null!;
+
+            if (expression is not LambdaExpressionSyntax lambda)
+                return false;
+
+            if (TryGetLambdaBodyExpression(lambda) is InvocationExpressionSyntax invocation
+                && invocation.Expression is MemberAccessExpressionSyntax memberAccess
+                && memberAccess.Name.Identifier.Text == "MapFrom"
+                && invocation.ArgumentList.Arguments.Count > 0
+                && invocation.ArgumentList.Arguments[0].Expression is LambdaExpressionSyntax innerLambda)
+            {
+                mapFromLambda = innerLambda;
+                return true;
+            }
+
+            mapFromLambda = lambda;
+            return true;
+        }
+
+        private static string? ExtractMapFromExpression(LambdaExpressionSyntax lambda, SemanticModel model)
+        {
+            var bodyExpression = TryGetLambdaBodyExpression(lambda);
+            if (bodyExpression is null)
+                return null;
+
+            // First, fully qualify type names on the ORIGINAL expression (which is part of the semantic model's tree)
+            var rewritten = (ExpressionSyntax)new TypeNameQualificationRewriter(model).Visit(bodyExpression)!;
+
+            // Then, rename lambda parameters on the qualified expression
+            var lambdaParameterName = GetSingleLambdaParameterName(lambda);
+            if (!string.IsNullOrEmpty(lambdaParameterName) && lambdaParameterName != "src")
+            {
+                rewritten = (ExpressionSyntax)new LambdaParameterRenameRewriter(lambdaParameterName!, "src").Visit(rewritten)!;
+            }
+
+            return rewritten.WithoutTrivia().ToString();
+        }
+
+        private static string? ExtractAfterMapExpression(LambdaExpressionSyntax lambda, SemanticModel model)
+        {
+            // AfterMap expects (src, dest) => { ... }
+            // We need to extract the body and convert it to executable code
+            if (lambda.Body is BlockSyntax blockSyntax)
+            {
+                // Fully qualify type names
+                var rewritten = (BlockSyntax)new TypeNameQualificationRewriter(model).Visit(blockSyntax)!;
+
+                // Get parameter names from the lambda
+                string? srcParamName = null;
+                string? destParamName = null;
+
+                if (lambda is SimpleLambdaExpressionSyntax simpleLambda)
+                {
+                    srcParamName = simpleLambda.Parameter.Identifier.Text;
+                }
+                else if (lambda is ParenthesizedLambdaExpressionSyntax parenthesizedLambda)
+                {
+                    if (parenthesizedLambda.ParameterList.Parameters.Count >= 2)
+                    {
+                        srcParamName = parenthesizedLambda.ParameterList.Parameters[0].Identifier.Text;
+                        destParamName = parenthesizedLambda.ParameterList.Parameters[1].Identifier.Text;
+                    }
+                }
+
+                // Rename parameters to match generated code (src and dest)
+                if (!string.IsNullOrEmpty(srcParamName) && srcParamName != "src")
+                {
+                    rewritten = (BlockSyntax)new LambdaParameterRenameRewriter(srcParamName!, "src").Visit(rewritten)!;
+                }
+                if (!string.IsNullOrEmpty(destParamName) && destParamName != "dest")
+                {
+                    rewritten = (BlockSyntax)new LambdaParameterRenameRewriter(destParamName!, "dest").Visit(rewritten)!;
+                }
+
+                // Extract statements from block and format them
+                var statements = rewritten.Statements;
+                var codeBuilder = new StringBuilder();
+                foreach (var statement in statements)
+                {
+                    var statementText = statement.WithoutTrivia().ToString();
+                    codeBuilder.AppendLine(statementText);
+                }
+
+                return codeBuilder.ToString().TrimEnd();
+            }
+            else if (lambda.Body is ExpressionSyntax expressionSyntax)
+            {
+                // Handle single expression: (src, dest) => dest.Property = src.Value
+                var rewritten = (ExpressionSyntax)new TypeNameQualificationRewriter(model).Visit(expressionSyntax)!;
+
+                // Get parameter names from the lambda
+                string? srcParamName = null;
+                string? destParamName = null;
+
+                if (lambda is ParenthesizedLambdaExpressionSyntax parenthesizedLambda)
+                {
+                    if (parenthesizedLambda.ParameterList.Parameters.Count >= 2)
+                    {
+                        srcParamName = parenthesizedLambda.ParameterList.Parameters[0].Identifier.Text;
+                        destParamName = parenthesizedLambda.ParameterList.Parameters[1].Identifier.Text;
+                    }
+                }
+
+                // Rename parameters to match generated code
+                if (!string.IsNullOrEmpty(srcParamName) && srcParamName != "src")
+                {
+                    rewritten = (ExpressionSyntax)new LambdaParameterRenameRewriter(srcParamName!, "src").Visit(rewritten)!;
+                }
+                if (!string.IsNullOrEmpty(destParamName) && destParamName != "dest")
+                {
+                    rewritten = (ExpressionSyntax)new LambdaParameterRenameRewriter(destParamName!, "dest").Visit(rewritten)!;
+                }
+
+                return rewritten.WithoutTrivia().ToString() + ";";
+            }
+
+            return null;
+        }
+
+        private static string? GetSingleLambdaParameterName(LambdaExpressionSyntax lambda)
+        {
+            if (lambda is SimpleLambdaExpressionSyntax simpleLambda)
+                return simpleLambda.Parameter.Identifier.Text;
+
+            if (lambda is ParenthesizedLambdaExpressionSyntax parenthesizedLambda
+                && parenthesizedLambda.ParameterList.Parameters.Count == 1)
+            {
+                return parenthesizedLambda.ParameterList.Parameters[0].Identifier.Text;
+            }
+
+            return null;
+        }
+
+        private static ExpressionSyntax? TryGetLambdaBodyExpression(LambdaExpressionSyntax lambda)
+        {
+            if (lambda.Body is ExpressionSyntax expressionSyntax)
+                return expressionSyntax;
+
+            if (lambda.Body is BlockSyntax blockSyntax)
+            {
+                return blockSyntax.Statements
+                    .OfType<ReturnStatementSyntax>()
+                    .Select(statement => statement.Expression)
+                    .OfType<ExpressionSyntax>()
+                    .FirstOrDefault();
+            }
+
+            return null;
+        }
+
+        private sealed class LambdaParameterRenameRewriter : CSharpSyntaxRewriter
+        {
+            private readonly string oldName;
+            private readonly string newName;
+
+            public LambdaParameterRenameRewriter(string oldName, string newName)
+            {
+                this.oldName = oldName;
+                this.newName = newName;
+            }
+
+            public override SyntaxNode? VisitIdentifierName(IdentifierNameSyntax node)
+            {
+                if (node.Identifier.Text == oldName)
+                {
+                    return SyntaxFactory.IdentifierName(newName).WithTriviaFrom(node);
+                }
+
+                return base.VisitIdentifierName(node);
+            }
+        }
+
+        private sealed class TypeNameQualificationRewriter : CSharpSyntaxRewriter
+        {
+            private readonly SemanticModel semanticModel;
+
+            public TypeNameQualificationRewriter(SemanticModel semanticModel)
+            {
+                this.semanticModel = semanticModel;
+            }
+
+            public override SyntaxNode? VisitIdentifierName(IdentifierNameSyntax node)
+            {
+                // Defensively check if this node is part of the semantic model's syntax tree
+                // to avoid "Syntax node is not within syntax tree" exceptions
+                if (node.SyntaxTree != semanticModel.SyntaxTree)
+                {
+                    return base.VisitIdentifierName(node);
+                }
+
+                var symbol = semanticModel.GetSymbolInfo(node).Symbol;
+                if (symbol is INamedTypeSymbol namedType)
+                {
+                    var qualified = namedType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+                    return SyntaxFactory.ParseName(qualified).WithTriviaFrom(node);
+                }
+
+                return base.VisitIdentifierName(node);
+            }
+        }
+
         private static void GenerateMapperConfigurationPartial(SourceProductionContext context,
-            List<MappingDefinition> mappings)
+            List<MappingDefinition> mappings,
+            string generatedNamespace)
         {
             var sb = new StringBuilder();
             sb.AppendLine("// <auto-generated />");
             sb.AppendLine("using System;");
-            sb.AppendLine("namespace RoboMapper");
+            sb.AppendLine($"namespace {generatedNamespace}");
             sb.AppendLine("{");
             sb.AppendLine("    internal static class MapperConfiguration_Initializer");
             sb.AppendLine("    {");
@@ -486,7 +867,7 @@ namespace RoboMapper.Generator
             sb2.AppendLine("// <auto-generated />");
             sb2.AppendLine("using System;");
             sb2.AppendLine("using System.Runtime.CompilerServices;");
-            sb2.AppendLine("namespace RoboMapper");
+            sb2.AppendLine($"namespace {generatedNamespace}");
             sb2.AppendLine("{");
             sb2.AppendLine("    internal static class MapperConfiguration_Init");
             sb2.AppendLine("    {");
@@ -494,20 +875,21 @@ namespace RoboMapper.Generator
             sb2.AppendLine("        internal static void InitializeGenerated()");
             sb2.AppendLine("        {");
 
-            foreach (var m in mappings.Distinct())
+            var comparer = new MappingDefinitionTypeComparer();
+            foreach (var m in mappings.Distinct(comparer))
             {
                 var srcName = m.Source.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
                 var destName = m.Destination.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
                 var methodName = $"Map_{Sanitize(m.Source)}_{Sanitize(m.Destination)}";
-
+                //there is only one MapperConfiguration
                 sb2.AppendLine(
-                    $"            MapperConfiguration.Instance.RegisterMap(typeof({srcName}), typeof({destName}), (Func<object, {destName}>)(src => GeneratedMappings.{methodName}(({srcName})src)));");
+                    $"            global::MediatorLib.Mapping.MapperConfiguration.Instance.RegisterMap(typeof({srcName}), typeof({destName}), (Func<object, {destName}>)(src => GeneratedMappings.{methodName}(({srcName})src)));");
 
                 if (m.Reverse)
                 {
                     var revMethod = $"Map_{Sanitize(m.Destination)}_{Sanitize(m.Source)}";
                     sb2.AppendLine(
-                        $"            MapperConfiguration.Instance.RegisterMap(typeof({destName}), typeof({srcName}), (Func<object, {srcName}>)(src => GeneratedMappings.{revMethod}(({destName})src)));");
+                        $"            global::MediatorLib.Mapping.MapperConfiguration.Instance.RegisterMap(typeof({destName}), typeof({srcName}), (Func<object, {srcName}>)(src => GeneratedMappings.{revMethod}(({destName})src)));");
                 }
             }
 

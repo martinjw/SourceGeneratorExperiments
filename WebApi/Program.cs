@@ -1,4 +1,5 @@
 using MediatorLib;
+using MediatorLib.Mediator;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -7,14 +8,14 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
+// Enable Swagger/OpenAPI UI in development
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
 
-//automatically scan and register all handlers in the assembly
-//reflection based registration
-//builder.Services.AddMediatorLib(typeof(GetWeatherHandler).Assembly);
-//or use the source generator to produce a static registry and register it
-builder.Services.AddMediatorLib(HandlerRegistryGenerated.Build());
-//or provide a manual registration method
-//builder.Services.AddServiceLib();
+//use the source generator to produce a static registry and register it
+builder.Services.AddMediator(ServiceLib.HandlerRegistryGenerated.Build());
+//or just let DI do it for you
+//builder.Services.AddMediator();
 
 var app = builder.Build();
 
@@ -22,7 +23,11 @@ var app = builder.Build();
 if (app.Environment.IsDevelopment())
 {
     //https://localhost:7016/openapi/v1.json
+    // register the generated OpenAPI document endpoint
     app.MapOpenApi();
+    // expose Swagger UI at /swagger
+    app.UseSwagger();
+    app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "API V1"));
 }
 
 app.UseHttpsRedirection();

@@ -1,4 +1,4 @@
-﻿using MediatorLib;
+﻿using MediatorLib.Mediator;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace ServiceLib

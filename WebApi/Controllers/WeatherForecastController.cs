@@ -1,4 +1,4 @@
-using MediatorLib;
+using MediatorLib.Mediator;
 using Microsoft.AspNetCore.Mvc;
 using ServiceLib;
 
@@ -18,7 +18,7 @@ namespace WebApi.Controllers
         [HttpGet("{city}")]
         public async Task<IActionResult> Get(string city)
         {
-            var result = await _mediator.SendAsync(new GetWeatherQuery(city));
+            var result = await _mediator.Send(new GetWeatherQuery(city));
 
             return Ok(result);
         }

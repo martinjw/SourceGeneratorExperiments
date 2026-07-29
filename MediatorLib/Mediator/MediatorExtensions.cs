@@ -1,7 +1,7 @@
-﻿using Microsoft.Extensions.DependencyInjection;
-using System.Reflection;
+﻿using System.Reflection;
+using Microsoft.Extensions.DependencyInjection;
 
-namespace MediatorLib
+namespace MediatorLib.Mediator
 {
     /// <summary>
     /// Provides extension methods for registering Mediator and its handlers with an IServiceCollection.
@@ -17,14 +17,18 @@ namespace MediatorLib
         /// <param name="services"></param>
         /// <param name="assemblies">The assemblies to scan for handlers.</param>
         /// <returns></returns>
-        public static IServiceCollection AddMediatorLib(
+        public static IServiceCollection AddMediator(
             this IServiceCollection services,
-            params Assembly[] assemblies)
+            params Assembly[]? assemblies)
         {
             //use the reflection based registry
-            var registry = new HandlerRegistry(assemblies);
-
-            return AddMediatorLib(services, registry);
+            if (assemblies != null)
+            {
+                return AddMediator(services, HandlerRegistryBuilder.Build(assemblies));
+            }
+            //let the mediator handle the registry itself (injected by DI)
+            services.AddSingleton<IMediator, Mediator>();
+            return services;
         }
 
         /// <summary>
@@ -33,7 +37,7 @@ namespace MediatorLib
         /// <param name="services"></param>
         /// <param name="registry">The handler registry to use.</param>
         /// <returns></returns>
-        public static IServiceCollection AddMediatorLib(this IServiceCollection services, IHandlerRegistry registry)
+        public static IServiceCollection AddMediator(this IServiceCollection services, IHandlerRegistry registry)
         {
             services.AddSingleton(registry);
             services.AddSingleton<IMediator, Mediator>();
