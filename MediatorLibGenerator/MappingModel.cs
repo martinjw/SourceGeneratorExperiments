@@ -8,7 +8,8 @@ namespace MediatorLibGenerator
         INamedTypeSymbol Destination,
         bool Reverse,
         IReadOnlyList<PropertyMapping> CustomMappings,
-        IReadOnlyList<string> AfterMapActions);
+        IReadOnlyList<string> AfterMapActions,
+        INamedTypeSymbol ProfileType);
 
     internal sealed record PropertyMapping(
         string DestinationName,
