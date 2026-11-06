@@ -9,9 +9,14 @@
     <Description>Mediator and mapping library for .NET applications.</Description>
     <PackageTags>mediator;mapping;dependency-injection</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
     <RepositoryUrl>https://github.com/martinjw/SourceGeneratorExperiments</RepositoryUrl>
     <PackageReleaseNotes>Initial release. Use with MediatorLibGenerator (source generator)</PackageReleaseNotes>
   </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.CSharp" Version="4.7.0" />

@@ -36,7 +36,7 @@ namespace TestRoboMapper
             Assert.IsNotNull(dto.Address);
             Assert.AreEqual(city, dto.Address.City);
             Assert.IsNotNull(dto.OtherAddresses);
-            Assert.AreEqual(2, dto.OtherAddresses.Count);
+            Assert.HasCount(2, dto.OtherAddresses);
             Assert.AreEqual("Antwerp", dto.OtherAddresses[0].City);
             Assert.AreEqual("Ghent", dto.OtherAddresses[1].City);
         }
@@ -74,7 +74,7 @@ namespace TestRoboMapper
 
             Assert.IsNotNull(dto);
             Assert.IsNotNull(dto.OtherAddresses);
-            Assert.AreEqual(0, dto.OtherAddresses.Count);
+            Assert.IsEmpty(dto.OtherAddresses);
         }
     }
 }
