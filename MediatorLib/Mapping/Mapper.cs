@@ -36,7 +36,8 @@
             // Check if source is an IEnumerable and destination expects an IEnumerable
             if (TryMapEnumerable(source, srcType, destType, out var mappedResult))
             {
-                return (TDestination)mappedResult;
+                return (TDestination)mappedResult ?? 
+                       throw new InvalidOperationException($"Failed to map enumerable from {srcType} to {destType}.");
             }
 
 #if DEBUG

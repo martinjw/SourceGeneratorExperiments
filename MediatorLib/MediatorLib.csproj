@@ -1,9 +1,16 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>netstandard2.0</TargetFramework>
+    <TargetFrameworks>netstandard2.0;net10.0</TargetFrameworks>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <LangVersion>10.0</LangVersion>
+    <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
+    <Title>Mediator and Mapping Library</Title>
+    <Description>Mediator and mapping library for .NET applications.</Description>
+    <PackageTags>mediator;mapping;dependency-injection</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <RepositoryUrl>https://github.com/martinjw/SourceGeneratorExperiments</RepositoryUrl>
+    <PackageReleaseNotes>Initial release. Use with MediatorLibGenerator (source generator)</PackageReleaseNotes>
   </PropertyGroup>
 
   <ItemGroup>
