@@ -2,6 +2,6 @@
 {
     public class FormAddressDto
     {
-        public string City { get; set; }
+        public string? City { get; set; }
     }
 }

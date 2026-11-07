@@ -11,6 +11,7 @@
     <PackageProjectUrl>https://github.com/martinjw/SourceGeneratorExperiments</PackageProjectUrl>
     <RepositoryUrl>https://github.com/martinjw/SourceGeneratorExperiments</RepositoryUrl>
     <PackageTags>source-generator;roslyn;mediator;mapping</PackageTags>
+    <PackageReadmeFile>ReadMe.md</PackageReadmeFile>
     <NoWarn>$(NoWarn);NU5128</NoWarn>
   </PropertyGroup>
   <ItemGroup>
@@ -21,8 +22,9 @@
     <PackageReference Include="Microsoft.CodeAnalysis.Analyzers" Version="5.9.0" PrivateAssets="all" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\MediatorLib\MediatorMapper.csproj" />
+    <ProjectReference Include="..\MediatorMapper\MediatorMapper.csproj" />
     <None Include="$(OutputPath)$(AssemblyName).dll" Pack="true" PackagePath="analyzers\dotnet\cs" Visible="false" />
+    <None Include="ReadMe.md" Pack="true" PackagePath="\" />
   </ItemGroup>
 
 </Project>

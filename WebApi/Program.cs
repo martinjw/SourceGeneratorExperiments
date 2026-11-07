@@ -12,7 +12,7 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 //use the source generator to produce a static registry and register it
-builder.Services.AddMediator(HandlerRegistryGenerated.Build());
+builder.Services.AddMediator(ServiceLib.HandlerRegistryGenerated.Build());
 //or just let DI do it for you
 //builder.Services.AddMediator();
 

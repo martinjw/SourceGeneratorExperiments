@@ -9,8 +9,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\MediatorLibGenerator\MediatorMapperGenerator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
-    <ProjectReference Include="..\MediatorLib\MediatorMapper.csproj" />
+    <ProjectReference Include="..\MediatorMapperGenerator\MediatorMapperGenerator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\MediatorMapper\MediatorMapper.csproj" />
   </ItemGroup>
 
   <ItemGroup>
