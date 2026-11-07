@@ -47,10 +47,10 @@ jobs:
     - name: Pack NuGet packages
       if: steps.version.outcome == 'success'
       run: |
-        dotnet build MediatorLib/MediatorLib.csproj --configuration Release --no-restore -p:GeneratePackageOnBuild=false -p:PackageVersion=${{ steps.version.outputs.package_version }}
-        dotnet build MediatorLibGenerator/MediatorLibGenerator.csproj --configuration Release --no-restore -p:GeneratePackageOnBuild=false -p:PackageVersion=${{ steps.version.outputs.package_version }}
-        dotnet pack MediatorLib/MediatorLib.csproj --configuration Release --no-build --output artifacts -p:GeneratePackageOnBuild=false -p:PackageVersion=${{ steps.version.outputs.package_version }}
-        dotnet pack MediatorLibGenerator/MediatorLibGenerator.csproj --configuration Release --no-build --output artifacts -p:GeneratePackageOnBuild=false -p:PackageVersion=${{ steps.version.outputs.package_version }}
+        dotnet build MediatorMapper/MediatorMapper.csproj --configuration Release --no-restore -p:GeneratePackageOnBuild=false -p:PackageVersion=${{ steps.version.outputs.package_version }}
+        dotnet build MediatorMapperGenerator/MediatorMapperGenerator.csproj --configuration Release --no-restore -p:GeneratePackageOnBuild=false -p:PackageVersion=${{ steps.version.outputs.package_version }}
+        dotnet pack MediatorMapper/MediatorMapper.csproj --configuration Release --no-build --output artifacts -p:GeneratePackageOnBuild=false -p:PackageVersion=${{ steps.version.outputs.package_version }}
+        dotnet pack MediatorMapperGenerator/MediatorMapperGenerator.csproj --configuration Release --no-build --output artifacts -p:GeneratePackageOnBuild=false -p:PackageVersion=${{ steps.version.outputs.package_version }}
     - name: Upload NuGet packages
       if: steps.version.outcome == 'success'
       uses: actions/upload-artifact@v4
