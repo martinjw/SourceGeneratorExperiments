@@ -1,7 +1,7 @@
 ﻿using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace MediatorLib.Mediator
+namespace MediatorMapper.Mediator
 {
     /// <summary>
     /// Provides extension methods for registering Mediator and its handlers with an IServiceCollection.

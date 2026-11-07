@@ -1,4 +1,4 @@
-﻿namespace MediatorLib.Mapping
+﻿namespace MediatorMapper.Mapping
 {
     /// <summary>
     /// Provides a base class for defining object-to-object mapping profiles.

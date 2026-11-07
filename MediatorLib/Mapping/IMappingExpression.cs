@@ -1,4 +1,4 @@
-﻿namespace MediatorLib.Mapping
+﻿namespace MediatorMapper.Mapping
 {
     public interface IMemberOptions<TSource>
     {

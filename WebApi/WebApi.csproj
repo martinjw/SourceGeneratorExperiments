@@ -13,7 +13,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\MediatorLib\MediatorLib.csproj" />
+    <ProjectReference Include="..\MediatorLib\MediatorMapper.csproj" />
     <ProjectReference Include="..\ServiceLib\ServiceLib.csproj" />
   </ItemGroup>
 

@@ -6,8 +6,8 @@
     <LangVersion>11.0</LangVersion>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <IncludeBuildOutput>false</IncludeBuildOutput>
-    <Title>Source generator for MediatorLib</Title>
-    <Description>Source generator for MediatorLib handler and mapping registrations.</Description>
+    <Title>Source generator for MediatorMapper</Title>
+    <Description>Source generator for MediatorMapper handler and mapping registrations.</Description>
     <PackageProjectUrl>https://github.com/martinjw/SourceGeneratorExperiments</PackageProjectUrl>
     <RepositoryUrl>https://github.com/martinjw/SourceGeneratorExperiments</RepositoryUrl>
     <PackageTags>source-generator;roslyn;mediator;mapping</PackageTags>
@@ -21,7 +21,7 @@
     <PackageReference Include="Microsoft.CodeAnalysis.Analyzers" Version="5.9.0" PrivateAssets="all" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\MediatorLib\MediatorLib.csproj" />
+    <ProjectReference Include="..\MediatorLib\MediatorMapper.csproj" />
     <None Include="$(OutputPath)$(AssemblyName).dll" Pack="true" PackagePath="analyzers\dotnet\cs" Visible="false" />
   </ItemGroup>
 

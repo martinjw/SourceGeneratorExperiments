@@ -1,4 +1,4 @@
-﻿namespace MediatorLib.Mediator
+﻿namespace MediatorMapper.Mediator
 {
     /// <summary>
     /// Marker for request handlers to be discovered

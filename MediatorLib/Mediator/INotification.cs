@@ -1,4 +1,4 @@
-﻿namespace MediatorLib.Mediator
+﻿namespace MediatorMapper.Mediator
 {
     /// <summary>
     /// Marker interface for notifications in a mediator pattern implementation.

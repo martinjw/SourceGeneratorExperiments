@@ -1,7 +1,7 @@
-﻿using MediatorLib.Mapping;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Text;
+using MediatorMapper.Mapping;
 using TestRoboMapper.FormModel;
 
 namespace TestRoboMapper

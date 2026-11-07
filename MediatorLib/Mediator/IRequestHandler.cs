@@ -1,4 +1,4 @@
-﻿namespace MediatorLib.Mediator
+﻿namespace MediatorMapper.Mediator
 {
     /// <summary>
     /// A handler for processing requests in a mediator pattern implementation. This interface defines a contract for handling requests of a specific type and returning a response of a specified type. The generic type parameters TRequest and TResponse represent the types of the request and response, respectively. Implementations of this interface are responsible for processing the incoming request and producing the appropriate response asynchronously.

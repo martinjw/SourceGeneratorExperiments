@@ -1,5 +1,4 @@
-﻿using MediatorLib;
-using MediatorLib.Mediator;
+﻿using MediatorMapper.Mediator;
 
 namespace ServiceLib;
 

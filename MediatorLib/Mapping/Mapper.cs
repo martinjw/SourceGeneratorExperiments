@@ -1,4 +1,4 @@
-﻿namespace MediatorLib.Mapping
+﻿namespace MediatorMapper.Mapping
 {
     /// <summary>
     /// Provides functionality to map objects from one type to another using configured mappings.

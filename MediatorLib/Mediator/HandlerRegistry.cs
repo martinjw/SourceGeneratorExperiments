@@ -1,4 +1,4 @@
-﻿namespace MediatorLib.Mediator
+﻿namespace MediatorMapper.Mediator
 {
     /// <summary>
     /// An empty registry that does not scan any assemblies. Handlers can be added manually to the RequestHandlers and NotificationHandlers dictionaries after instantiation.

@@ -1,8 +1,8 @@
-# MediatorLib
+# MediatorMapper
 
-MediatorLib is a small mediator and object-mapping library for .NET. It provides
+MediatorMapper is a small mediator and object-mapping library for .NET. It provides
 request/notification contracts, a mediator backed by dependency injection, and
-mapping APIs designed to work with the companion `MediatorLibGenerator` source
+mapping APIs designed to work with the companion `MediatorMapperGenerator` source
 generator.
 
 ## Mediator
@@ -23,7 +23,7 @@ In an ASP.NET Core `Program.cs`, register the mediator and scan the assembly
 containing your handlers:
 
 ```csharp
-using MediatorLib.Mediator;
+using MediatorMapper.Mediator;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -70,15 +70,15 @@ types with dependency injection.
 `MappingProfile` is the base class for declaring mappings with
 `CreateMap<TSource, TDestination>()`. The profile and fluent expressions
 (`ForMember`, `ReverseMap`, and `AfterMap`) describe mappings for
-`MediatorLibGenerator`; they are not executed as runtime configuration.
+`MediatorMappingGenerator`; they are not executed as runtime configuration.
 
-Add the `MediatorLibGenerator` NuGet package as an analyzer to the project
+Add the `MediatorMappingGenerator` NuGet package as an analyzer to the project
 containing your mapping profiles. The generator produces mapping code and
 registers it with `MapperConfiguration`. Then use `IMapper` (or `Mapper`) to
 map objects:
 
 ```csharp
-using MediatorLib.Mapping;
+using MediatorMapper.Mapping;
 
 public sealed class PersonProfile : MappingProfile
 {

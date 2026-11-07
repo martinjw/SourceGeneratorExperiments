@@ -1,4 +1,4 @@
-﻿namespace MediatorLib.Mapping
+﻿namespace MediatorMapper.Mapping
 {
     /// <summary>
     /// Attribute marker for mapped classes (optional)

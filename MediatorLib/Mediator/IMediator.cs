@@ -1,4 +1,4 @@
-﻿namespace MediatorLib.Mediator
+﻿namespace MediatorMapper.Mediator
 {
     /// <summary>
     /// A mediator interface that defines methods for sending requests and publishing notifications in a mediator pattern implementation.

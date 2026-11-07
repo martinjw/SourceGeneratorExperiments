@@ -1,4 +1,4 @@
-﻿namespace MediatorLib.Mapping
+﻿namespace MediatorMapper.Mapping
 {
     /// <summary>
     /// Defines a mapping configuration between a source type and a destination type, allowing customization of how

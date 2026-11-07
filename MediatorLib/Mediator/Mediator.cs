@@ -2,7 +2,7 @@
 using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace MediatorLib.Mediator
+namespace MediatorMapper.Mediator
 {
     /// <summary>
     /// The Mediator class implements the IMediator interface and serves as the central component of the mediator pattern. It is responsible for sending requests to their corresponding handlers and publishing notifications to all registered handlers. The Mediator uses an IServiceProvider to resolve handler instances and an IHandlerRegistry to keep track of which handlers are associated with which request and notification types.

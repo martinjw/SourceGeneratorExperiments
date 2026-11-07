@@ -2,7 +2,7 @@
 using System;
 using System.Linq;
 
-namespace MediatorLibGenerator
+namespace MediatorMapperGenerator
 {
     internal static class GeneratorHelpers
     {
@@ -13,7 +13,7 @@ namespace MediatorLibGenerator
                 : rootNamespace;
 
             if (string.IsNullOrWhiteSpace(candidate))
-                return "MediatorLib.Mediator";
+                return "MediatorMapper.Mediator";
 
             var normalized = string.Join(".", candidate
                 .Split(new[] { '.' }, StringSplitOptions.RemoveEmptyEntries)
@@ -33,7 +33,7 @@ namespace MediatorLibGenerator
                 }));
 
             return string.IsNullOrWhiteSpace(normalized)
-                ? "MediatorLib.Mediator"
+                ? "MediatorMapper.Mediator"
                 : normalized;
         }
     }

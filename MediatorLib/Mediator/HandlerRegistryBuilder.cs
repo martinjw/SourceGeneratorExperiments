@@ -1,6 +1,6 @@
 ﻿using System.Reflection;
 
-namespace MediatorLib.Mediator
+namespace MediatorMapper.Mediator
 {
     public static class HandlerRegistryBuilder
     {

@@ -1,5 +1,4 @@
-using MediatorLib;
-using MediatorLib.Mediator;
+using MediatorMapper.Mediator;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -13,7 +12,7 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 //use the source generator to produce a static registry and register it
-builder.Services.AddMediator(ServiceLib.HandlerRegistryGenerated.Build());
+builder.Services.AddMediator(HandlerRegistryGenerated.Build());
 //or just let DI do it for you
 //builder.Services.AddMediator();
 

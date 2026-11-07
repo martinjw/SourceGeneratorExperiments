@@ -1,4 +1,4 @@
-﻿using MediatorLib.Mapping;
+﻿using MediatorMapper.Mapping;
 
 namespace TestRoboMapper.FormModel
 {

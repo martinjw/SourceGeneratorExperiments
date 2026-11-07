@@ -1,7 +1,7 @@
 ﻿using System.Collections.Generic;
 using Microsoft.CodeAnalysis;
 
-namespace MediatorLibGenerator
+namespace MediatorMapperGenerator
 {
     internal sealed record MappingDefinition(
         INamedTypeSymbol Source,
