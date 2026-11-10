@@ -7,10 +7,12 @@
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <IncludeBuildOutput>false</IncludeBuildOutput>
     <Title>Source generator for MediatorMapper</Title>
+    <Authors>martinjw</Authors>
     <Description>Source generator for MediatorMapper handler and mapping registrations.</Description>
     <PackageProjectUrl>https://github.com/martinjw/SourceGeneratorExperiments</PackageProjectUrl>
     <RepositoryUrl>https://github.com/martinjw/SourceGeneratorExperiments</RepositoryUrl>
     <PackageTags>source-generator;roslyn;mediator;mapping</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>ReadMe.md</PackageReadmeFile>
     <NoWarn>$(NoWarn);NU5128</NoWarn>
   </PropertyGroup>

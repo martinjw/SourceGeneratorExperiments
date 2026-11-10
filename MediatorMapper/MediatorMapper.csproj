@@ -6,6 +6,7 @@
     <LangVersion>10.0</LangVersion>
     <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
     <Title>Mediator and Mapping Library</Title>
+    <Authors>martinjw</Authors>
     <Description>Mediator and mapping library for .NET applications.</Description>
     <PackageTags>mediator;mapping;dependency-injection</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>

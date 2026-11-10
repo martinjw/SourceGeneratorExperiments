@@ -37,8 +37,8 @@ jobs:
         latest_tag="$(git tag --list 'v1.*' --sort=-version:refname | head -n 1)"
         if [[ -z "$latest_tag" ]]; then
           package_version="1.0.0"
-        elif [[ "$latest_tag" =~ ^v1\.([0-9]+)\.[0-9]+$ ]]; then
-          package_version="1.$((${BASH_REMATCH[1]} + 1)).0"
+        elif [[ "$latest_tag" =~ ^v1\.([0-9]+)\.([0-9]+)$ ]]; then
+          package_version="1.${BASH_REMATCH[1]}.$((${BASH_REMATCH[2]} + 1))"
         else
           echo "Latest v1 release tag '$latest_tag' is not in the expected v1.MINOR.PATCH format." >&2
           exit 1
