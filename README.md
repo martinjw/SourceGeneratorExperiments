@@ -10,10 +10,15 @@ Source generators are netstandard2.0 projects and cannot be .net8 or 10. They re
 The examples here are based on emulating Mediatr and AutoMapper, with cut-down functionality. This repo is not a replacement for those libraries; either use the originals, or the many clones out there. It simply to learn about source generators. In particular, AutoMapper is much richer than this, while Mapster is a variation using source generators.
 
 This solution has 2 generators 
-* MediatorLibGenerator.HandlerGenerator. ServiceLib references MediatorLib for Mediator types, and references MediatorLibGenerator as an analyzer (MediatorLibGenerator dpes not reference anything, but it is hard-coded with type names from MediatorLib). ServiceLib.dll includes the generated code (the WebApi does not reference or include MediatorLibGenerator).
-  * To view the generated code, in ServiceLib open Dependencies/Analyzers/MediatorLibGenerator
-* MediatorLibGenerator.MappingGenerator. The TestRoboMapper project has 2 references, to MediatorLib for the Mapping types, and an Analyzer reference to MediatorLibGenerator.
-  * To view the generated code, in TestRoboMapper open Dependencies/Analyzers/MediatorLibGenerator
+* MediatorMapperGenerator.HandlerGenerator. ServiceLib references MediatorMapper for Mediator types, and references MediatorMapperGenerator as an analyzer (MediatorMapperGenerator dpes not reference anything, but it is hard-coded with type names from MediatorMapper). ServiceLib.dll includes the generated code (the WebApi does not reference or include MediatorMapperGenerator).
+  * To view the generated code, in ServiceLib open Dependencies/Analyzers/MediatorMapperGenerator
+* MediatorMapperGenerator.MappingGenerator. The TestRoboMapper project has 2 references, to MediatorMapper for the Mapping types, and an Analyzer reference to MediatorMapperGenerator.
+  * To view the generated code, in TestRoboMapper open Dependencies/Analyzers/MediatorMapperGenerator
   * Note the analyzer additional md files for logging diagnostics.
 
-The Mapper (automapper emulation) is much more complex, and frankly needed a lot of AI help. There are lots of AutoMapper functionalities which are way beyond the scope of this experiment, and frankly that reveals the complexity of the generator can become overwhelming (although as in automapper magic, sometimes a manual mapping class is the better solution).  
+The Mapper (automapper emulation) is much more complex, and frankly needed a lot of AI help. There are lots of AutoMapper functionalities which are way beyond the scope of this experiment, and frankly that reveals the complexity of the generator can become overwhelming (although as in automapper magic, sometimes a manual mapping class is the better solution).
+
+Nuget: 
+* Install-Package MediatorMapper [![Nuget](https://img.shields.io/nuget/v/MediatorMapper.svg) ](https://www.nuget.org/packages/MediatorMapper/)
+* Install-Package MediatorMapperGenerator [![Nuget](https://img.shields.io/nuget/v/MediatorMapperGenerator.svg) ](https://www.nuget.org/packages/MediatorMapperGenerator/)
+* Note this is only a subset of Mediatr/Automapper functionality, and the api has some differences. 
